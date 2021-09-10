@@ -25,7 +25,7 @@ import _init_paths
 from config import cfg
 from config import update_config
 from core.loss import JointsMSELoss
-from core.function import validate
+from core.function import validate,ensemble_validate
 from utils.utils import create_logger
 import multiscale_test
 
@@ -63,12 +63,19 @@ def parse_args():
                         type=str,
                         default='')
 
+    parser.add_argument('--ensemble',
+                        help='ensemble model',
+                        type=str,
+                        required=True,
+                        default='')
+
     args = parser.parse_args()
     return args
 
 
 def main():
     args = parse_args()
+    print(args)
     update_config(cfg, args)
 
     logger, final_output_dir, tb_log_dir = create_logger(
@@ -86,6 +93,10 @@ def main():
         cfg, is_train=False
     )
 
+    if cfg.ensemble:
+        logger.info('\n===> load ckpt in : {}'.format(cfg.ensemble))
+        ensemble = torch.load(cfg.ensemble)
+
     if cfg.TEST.MODEL_FILE:
         logger.info('=> loading model from {}'.format(cfg.TEST.MODEL_FILE))
         model.load_state_dict(torch.load(cfg.TEST.MODEL_FILE), strict=False)
@@ -97,6 +108,8 @@ def main():
         model.load_state_dict(torch.load(model_state_file))
 
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+    if cfg.ensemble:
+        ensemble = torch.nn.DataParallel(ensemble, device_ids=cfg.GPUS).cuda()
 
     # define loss function (criterion) and optimizer
     criterion = JointsMSELoss(
@@ -123,8 +136,8 @@ def main():
     )
 
     # evaluate on validation set
-    validate(cfg, valid_loader, valid_dataset, model, criterion,
-             final_output_dir, tb_log_dir)
+    ensemble_validate(cfg, valid_loader, valid_dataset, model, criterion,
+             final_output_dir, tb_log_dir, ensemble)
     # multiscale_test.validate(cfg, valid_loader, valid_dataset, model, criterion,
     #                          final_output_dir, tb_log_dir, test_scale=[0.8, 0.9, 1.0, 1.1, 1.2, 1.3],
     #                          image_transform=transforms.Compose([

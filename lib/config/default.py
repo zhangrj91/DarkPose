@@ -123,6 +123,7 @@ _C.DEBUG.SAVE_BATCH_IMAGES_PRED = False
 _C.DEBUG.SAVE_HEATMAPS_GT = False
 _C.DEBUG.SAVE_HEATMAPS_PRED = False
 
+_C.ensemble = 'best_ckpt.tar'
 
 def update_config(cfg, args):
     cfg.defrost()
@@ -137,6 +138,9 @@ def update_config(cfg, args):
 
     if args.dataDir:
         cfg.DATA_DIR = args.dataDir
+
+    if args.ensemble:
+        cfg.ensemble = args.ensemble
 
     cfg.DATASET.ROOT = os.path.join(
         cfg.DATA_DIR, cfg.DATASET.ROOT
